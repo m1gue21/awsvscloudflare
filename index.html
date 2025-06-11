@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparador Interactivo: Cloudflare vs. AWS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutral Harmony -->
+    <!-- Application Structure Plan: The SPA is designed as an interactive presentation tool. It starts with a strong thesis statement in the hero section. The core is a tab-based navigation allowing users to select a specific service (CDN, Workers, R2, etc.) for comparison. This non-linear approach empowers the user to explore what's most relevant to them, making it ideal for a live presentation. Each tab reveals a dedicated section with side-by-side comparisons, interactive charts/calculators, and key takeaways. This structure was chosen over a simple linear report to make the comparison more engaging, digestible, and impactful by focusing on one service at a time, preventing information overload. The flow concludes by fairly presenting AWS's strengths for a balanced perspective. A new 'References' section is added at the end, accessible via a navigation button, providing external source validation. All references are now clickable links to their respective articles. -->
+    <!-- Visualization & Content Choices: 
+        - CDN: Report says CF is "3x faster". Goal: Compare speed. Viz: Bar Chart (Chart.js) to visually represent this performance gap. Justification: A bar chart is the clearest way to show a direct quantitative comparison.
+        - Workers (Serverless): Report notes CF has "zero cold starts" vs. ">1s" for Lambda. Goal: Compare latency. Viz: Bar Chart (Chart.js) contrasting near-zero start time with a significant delay. Justification: Visually dramatizes the critical performance difference of cold starts.
+        - R2 Storage: Report highlights "zero egress fees" for R2 vs. high fees for S3. Goal: Compare cost. Viz: Interactive Cost Calculator (HTML/JS). Interaction: User adjusts sliders for storage/bandwidth to see real-time cost differences. Justification: Far more impactful than a static table; it allows users to see the economic advantage based on their own potential usage.
+        - WAF/DDoS: Report describes CF's integrated security vs. AWS's separate, costly services. Goal: Compare complexity and cost model. Viz: HTML/CSS diagram. Justification: A visual diagram best illustrates the architectural difference (all-in-one vs. modular/add-on), which is the core argument.
+        - DNS: Report states CF DNS is faster (~11ms vs. ~20ms). Goal: Compare speed. Viz: Simple Bar Chart (Chart.js). Justification: Clearly shows the performance edge in raw numbers.
+        - References: Goal: Provide source validation. Viz: Clickable text list (HTML). Interaction: Scroll to section via button, click links to open sources. Justification: Standard practice for academic/professional presentations, enhanced with direct navigation.
+        - All choices use Chart.js (Canvas) or structured HTML/CSS, avoiding SVG/Mermaid as required. The structure is designed to support the "Cloudflare is better and cheaper" narrative of the presentation. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #333;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 280px;
+            width: 100%;
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+        .nav-btn.active {
+            background-color: #F48120;
+            color: #FFFFFF;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(244, 129, 32, 0.2);
+        }
+        .nav-btn:not(.active):hover {
+            transform: translateY(-2px);
+            background-color: #FFF;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .card {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            border: 1px solid #E5E7EB;
+        }
+        .cf-card { border-left: 4px solid #F48120; }
+        .aws-card { border-left: 4px solid #232F3E; }
+        .stat-value {
+            font-size: 1.875rem;
+            font-weight: 700;
+            line-height: 2.25rem;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6B7280;
+        }
+        .section-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 2.5rem;
+            text-align: center;
+        }
+        .section-subtitle {
+            font-size: 1.125rem;
+            line-height: 1.75rem;
+            color: #4B5563;
+            max-width: 48rem;
+            margin: 0 auto 3rem;
+            text-align: center;
+        }
+        .reference-link {
+            color: #2563EB; /* A nice blue for links */
+            text-decoration: none;
+        }
+        .reference-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="text-center py-12 md:py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-[#F48120]">Cloudflare vs. AWS</h1>
+            <p class="mt-4 text-xl md:text-2xl text-gray-600">Un Análisis Interactivo para Arquitectos de Nube</p>
+            <p class="mt-6 max-w-2xl mx-auto text-lg text-gray-500">
+                Esta es una exploración de por qué Cloudflare se está convirtiendo en la opción preferida para arquitecturas modernas, enfocándonos en <strong class="text-gray-800">rendimiento, costo y simplicidad</strong>.
+            </p>
+        </div>
+    </header>
+
+    <main class="py-12 md:py-16">
+        <div class="max-w-6xl mx-auto px-4">
+            
+            <div id="navigation" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4 mb-12">
+            </div>
+
+            <div id="content-area">
+            </div>
+
+        </div>
+    </main>
+    
+    <section id="aws-strengths" class="py-16 bg-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="section-title">Reconociendo las Fortalezas de AWS</h2>
+            <p class="section-subtitle">
+                Aunque Cloudflare destaca en el borde, AWS sigue siendo el gigante de la nube por razones de peso. Su fortaleza radica en la amplitud y profundidad de su ecosistema, ideal para organizaciones con una infraestructura de backend compleja y diversa.
+            </p>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="card p-6 text-center">
+                    <div class="text-5xl mb-4 text-[#232F3E]">⚙️</div>
+                    <h3 class="font-bold text-lg mb-2">Ecosistema Integral</h3>
+                    <p class="text-gray-600 text-sm">Más de 200 servicios que cubren computación, bases de datos, IA/ML, IoT y más, permitiendo construir casi cualquier aplicación imaginable en una sola plataforma.</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <div class="text-5xl mb-4 text-[#232F3E]">📈</div>
+                    <h3 class="font-bold text-lg mb-2">Escalabilidad y Flexibilidad</h3>
+                    <p class="text-gray-600 text-sm">Control granular sobre la infraestructura con herramientas como Auto Scaling y opciones de enrutamiento complejas (Route 53) para cargas de trabajo masivas.</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <div class="text-5xl mb-4 text-[#232F3E]">🤝</div>
+                    <h3 class="font-bold text-lg mb-2">Cuota de Mercado y Comunidad</h3>
+                    <p class="text-gray-600 text-sm">La plataforma más utilizada a nivel mundial, con una vasta comunidad, extensa documentación y un gran mercado de talento especializado.</p>
+                </div>
+                <div class="card p-6 text-center">
+                    <div class="text-5xl mb-4 text-[#232F3E]">🏢</div>
+                    <h3 class="font-bold text-lg mb-2">Adopción Empresarial</h3>
+                    <p class="text-gray-600 text-sm">Es la opción preferida para grandes empresas con inversiones profundas en un único proveedor de nube y que necesitan integraciones nativas complejas.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-[#232F3E] text-white">
+        <div class="max-w-6xl mx-auto px-4 py-12 text-center">
+            <h2 class="text-3xl font-bold mb-4">Conclusión para el Bootcamp</h2>
+            <p class="max-w-3xl mx-auto text-gray-300 mb-6">
+                Para un arquitecto de nube moderno, la elección no es siempre AWS por defecto. <strong class="text-[#F48120]">Cloudflare ofrece una ventaja estratégica en el borde</strong>: es más rápido para el usuario final, su seguridad es robusta y viene integrada, y su modelo de precios predecible elimina sorpresas costosas como las tarifas de egreso.
+            </p>
+            <p class="max-w-3xl mx-auto text-gray-300">
+                Mientras AWS es la navaja suiza para el backend, <strong class="text-[#F48120]">Cloudflare es el bisturí de precisión para la entrega de aplicaciones web y APIs</strong>: una herramienta indispensable para construir la web del futuro.
+            </p>
+        </div>
+    </footer>
+
+    <section id="references-section" class="py-16 bg-gray-100">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="section-title text-[#232F3E]">Referencias</h2>
+            <p class="section-subtitle text-gray-600">
+                Las afirmaciones y datos presentados en esta aplicación se basan en la siguiente investigación y documentación oficial de los proveedores:
+            </p>
+            <ul id="references-list" class="list-disc list-inside space-y-2 text-gray-700 max-w-2xl mx-auto">
+                <!-- References will be dynamically loaded here by JavaScript -->
+            </ul>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentData = {
+                cdn: {
+                    title: 'CDN',
+                    icon: '⚡',
+                    cf: {
+                        title: 'Cloudflare CDN',
+                        stats: [
+                            { value: '3x', label: 'más rápido que CloudFront' },
+                            { value: '44%', label: 'de redes más rápido' },
+                            { value: '<50ms', label: 'para el 95% de usuarios' }
+                        ],
+                        summary: 'Aprovecha una de las redes más grandes y rápidas del mundo. Su enrutamiento inteligente (Argo) y su caché optimizada reducen la latencia drásticamente.',
+                        chartData: {
+                            label: 'Velocidad Relativa',
+                            value: 300
+                        }
+                    },
+                    aws: {
+                        title: 'AWS CloudFront',
+                        stats: [
+                            { value: 'Regional', label: 'Cobertura limitada' },
+                            { value: 'Variable', label: 'Costo por GB + req' },
+                            { value: 'Complejo', label: 'Configuración' }
+                        ],
+                        summary: 'Integrado profundamente con el ecosistema de AWS. Su rendimiento es sólido pero generalmente más lento y su configuración puede ser más compleja y costosa.',
+                        chartData: {
+                            label: 'Velocidad Relativa',
+                            value: 100
+                        }
+                    },
+                    chartType: 'bar',
+                    chartTitle: 'Comparativa de Rendimiento CDN',
+                    intro: 'La Red de Entrega de Contenido (CDN) es la primera línea de defensa para la velocidad de tu sitio. Aquí comparamos la velocidad y alcance de Cloudflare frente a la solución de AWS.'
+                },
+                workers: {
+                    title: 'Serverless',
+                    icon: '👩‍💻',
+                    cf: {
+                        title: 'Cloudflare Workers',
+                        stats: [
+                            { value: '0ms', label: 'Cold Start' },
+                            { value: '<5ms', label: 'Tiempo de inicio' },
+                            { value: 'Simple', label: 'Despliegue con Wrangler' }
+                        ],
+                        summary: 'Se ejecuta en el borde, eliminando los "arrancques en frío". Esto se traduce en una latencia ultra baja, ideal para APIs y aplicaciones interactivas. La experiencia de desarrollo es ágil y sencilla.',
+                        chartData: {
+                            label: 'Tiempo de Inicio (ms)',
+                            value: 5
+                        }
+                    },
+                    aws: {
+                        title: 'AWS Lambda@Edge',
+                        stats: [
+                            { value: '>1s', label: 'Cold Start' },
+                            { value: 'Variable', label: 'Latencia' },
+                            { value: 'Complejo', label: 'Roles IAM + API Gateway' }
+                        ],
+                        summary: 'Potente y flexible, pero sufre de "arrancques en frío" que pueden añadir más de un segundo de latencia. La configuración requiere gestionar múltiples servicios de AWS.',
+                        chartData: {
+                            label: 'Tiempo de Inicio (ms)',
+                            value: 1000
+                        }
+                    },
+                    chartType: 'bar',
+                    chartTitle: 'Impacto del "Cold Start" en Serverless',
+                    intro: 'La computación Serverless permite ejecutar código sin gestionar servidores, pero el tiempo de inicio ("cold start") es crítico. Veamos cómo se comparan las soluciones de borde.'
+                },
+                r2: {
+                    title: 'Almacenamiento',
+                    icon: '📦',
+                    cf: {
+                        title: 'Cloudflare R2',
+                        stats: [
+                            { value: '$0', label: 'Tarifas de Egreso' },
+                            { value: '10GB', label: 'Almacenamiento gratuito' },
+                            { value: '$0.015/GB', label: 'Costo de almacenamiento' }
+                        ],
+                        summary: 'Revoluciona el almacenamiento de objetos al eliminar por completo las tarifas de egreso de datos. Ideal para aplicaciones multi-nube, lagos de datos y cualquier caso de uso con alta transferencia de datos.',
+                    },
+                    aws: {
+                        title: 'AWS S3',
+                        stats: [
+                            { value: '~$0.09/GB', label: 'Tarifa de Egreso' },
+                            { value: '5GB', label: 'Almacenamiento gratuito' },
+                            { value: '$0.023/GB', label: 'Costo de almacenamiento' }
+                        ],
+                        summary: 'El estándar de la industria, increíblemente duradero y escalable. Sin embargo, sus costos de egreso pueden ser impredecibles y muy altos, creando una dependencia del proveedor (vendor lock-in).',
+                    },
+                    chartType: 'calculator',
+                    chartTitle: 'Calculadora de Costos de Almacenamiento',
+                    intro: 'El costo del almacenamiento no es solo cuánto guardas, sino cuánto sacas. Las "tarifas de egreso" son un costo oculto significativo. Usa esta calculadora para ver el impacto.'
+                },
+                security: {
+                    title: 'Seguridad',
+                    icon: '🛡️',
+                    cf: {
+                        title: 'Cloudflare WAF + DDoS',
+                        stats: [
+                            { value: 'Integrado', label: 'WAF, DDoS, Bots' },
+                            { value: 'Tarifa Fija', label: 'Protección Ilimitada' },
+                            { value: 'Simple', label: 'Activación en un clic' }
+                        ],
+                        summary: 'La seguridad es una característica central, no un complemento. Ofrece protección DDoS ilimitada y un WAF inteligente que aprende de millones de sitios, todo incluido en planes de tarifa fija y fácil de configurar.',
+                    },
+                    aws: {
+                        title: 'AWS WAF + Shield',
+                        stats: [
+                            { value: 'Separado', label: 'Servicios por separado' },
+                            { value: '$3000/mes', label: 'Costo de Shield Adv.' },
+                            { value: 'Complejo', label: 'Requiere configuración' }
+                        ],
+                        summary: 'Ofrece herramientas de seguridad potentes pero como servicios separados y costosos. La protección avanzada DDoS (Shield Advanced) y el control de bots tienen costos adicionales significativos y requieren configuración experta.',
+                    },
+                    chartType: 'diagram',
+                    chartTitle: 'Modelo de Seguridad: Integrado vs. Complementos',
+                    intro: 'Una buena seguridad debe ser simple y predecible. Aquí se compara el enfoque "todo en uno" de Cloudflare con el modelo de "servicios a la carta" de AWS.'
+                },
+                dns: {
+                    title: 'DNS',
+                    icon: '🌐',
+                    cf: {
+                        title: 'Cloudflare DNS',
+                        stats: [
+                            { value: '~11ms', label: 'Búsqueda Global' },
+                            { value: 'Instantánea', label: 'Propagación' },
+                            { value: 'Gratis', label: 'Seguridad integrada' }
+                        ],
+                        summary: 'Consistentemente clasificado como el servicio de DNS más rápido del mundo. La velocidad y la seguridad (como DNSSEC y mitigación de DDoS) están integradas y son fáciles de activar, a menudo de forma gratuita.',
+                        chartData: {
+                            label: 'Velocidad de Búsqueda (ms)',
+                            value: 11
+                        }
+                    },
+                    aws: {
+                        title: 'AWS Route 53',
+                        stats: [
+                            { value: '~20ms', label: 'Búsqueda Global' },
+                            { value: 'Rápida', label: 'Propagación' },
+                            { value: 'Pago', label: 'Por consultas' }
+                        ],
+                        summary: 'Un servicio DNS confiable y escalable, perfecto para enrutamiento complejo dentro del ecosistema de AWS. Generalmente es más lento que Cloudflare y su modelo de precios se basa en el uso.',
+                        chartData: {
+                            label: 'Velocidad de Búsqueda (ms)',
+                            value: 20
+                        }
+                    },
+                    chartType: 'bar',
+                    chartTitle: 'Velocidad de Resolución de DNS (menor es mejor)',
+                    intro: 'La resolución de DNS es el primer paso para cargar un sitio web. Cada milisegundo cuenta. Comparamos la velocidad de respuesta promedio a nivel mundial.'
+                },
+                references: { 
+                    title: 'Referencias', 
+                    icon: '📚',
+                    links: [
+                        { text: '[1] The Cloudflare Blog', url: 'https://blog.cloudflare.com/' },
+                        { text: '[2] Cloudflare Docs', url: 'https://developers.cloudflare.com/workers/' },
+                        { text: '[3] Cloudflare - Why Cloudflare is a better choice for cloud architecture', url: 'https://www.cloudflare.com/lp/cloudflare-vs-aws/' },
+                        { text: '[4] AWS Global Infrastructure', url: 'https://aws.amazon.com/about-aws/global-infrastructure/' },
+                        { text: '[5] Cloudflare Network Map', url: 'https://www.cloudflare.com/network/' },
+                        { text: '[6] Cloudflare - Pricing', url: 'https://www.cloudflare.com/plans/' },
+                        { text: '[7] Cloudflare for Startups', url: 'https://www.cloudflare.com/for-startups/' },
+                        { text: '[8] AWS CloudFront Features', url: 'https://aws.amazon.com/cloudfront/features/' },
+                        { text: '[9] Cloudflare Developers - Workers vs Lambda', url: 'https://blog.cloudflare.com/cloudflare-workers-vs-aws-lambda/' },
+                        { text: '[10] Cloudflare Developers - Get Started with Workers', url: 'https://developers.cloudflare.com/workers/get-started/' },
+                        { text: '[11] Cloudflare Pages', url: 'https://pages.cloudflare.com/' },
+                        { text: '[12] Cloudflare - Wrangler CLI', url: 'https://developers.cloudflare.com/workers/wrangler/' },
+                        { text: '[13] Cloudflare Docs - DNS', url: 'https://developers.cloudflare.com/dns/' },
+                        { text: '[14] Cloudflare R2 Pricing', url: 'https://www.cloudflare.com/products/r2-object-storage/pricing/' },
+                        { text: '[15] Cloudflare - WAF vs AWS WAF', url: 'https://www.cloudflare.com/lp/waf-vs-aws-waf/' },
+                        { text: '[16] DNSPerf - DNS Speed Comparison', url: 'https://www.dnsperf.com/' },
+                        { text: '[17] Cloudflare Security', url: 'https://www.cloudflare.com/lp/security/' },
+                        { text: '[18] AWS Cloud Benefits', url: 'https://aws.amazon.com/what-is-aws/benefits/' },
+                        { text: '[19] AWS Integration', url: 'https://aws.amazon.com/integration/' }
+                    ]
+                }
+            };
+            
+            const navigation = document.getElementById('navigation');
+            const contentArea = document.getElementById('content-area');
+            const referencesList = document.getElementById('references-list');
+            let activeChart = null;
+
+            function createNavButton(id, data) {
+                const button = document.createElement('button');
+                button.id = `btn-${id}`;
+                button.className = 'nav-btn w-full text-center px-2 py-3 rounded-lg bg-white border border-gray-200 shadow-sm text-gray-700 font-semibold';
+                button.innerHTML = `<span class="text-2xl">${data.icon}</span><span class="block text-sm mt-1">${data.title}</span>`;
+                button.onclick = () => {
+                    if (id === 'references') {
+                        document.getElementById('references-section').scrollIntoView({ behavior: 'smooth' });
+                        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                        document.getElementById(`btn-${id}`).classList.add('active');
+                    } else {
+                        showTab(id);
+                    }
+                };
+                return button;
+            }
+            
+            function createCard(providerData, provider) {
+                return `
+                    <div class="card ${provider}-card p-6 h-full flex flex-col">
+                        <h3 class="text-xl font-bold mb-4">${providerData.title}</h3>
+                        <div class="grid grid-cols-3 gap-4 mb-4 text-center">
+                            ${providerData.stats.map(stat => `
+                                <div>
+                                    <p class="stat-value text-${provider === 'cf' ? '[#F48120]' : '[#232F3E]'}">${stat.value}</p>
+                                    <p class="stat-label">${stat.label}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="text-gray-600 text-sm flex-grow">${providerData.summary}</p>
+                    </div>
+                `;
+            }
+
+            function createChartContainer(id, title) {
+                return `
+                    <div id="chart-section-${id}" class="card p-6 mt-8 col-span-1 md:col-span-2">
+                         <h3 class="text-lg font-bold text-center mb-4">${title}</h3>
+                         <div id="viz-container-${id}"></div>
+                    </div>
+                `;
+            }
+
+            function createBarChart(canvasId, data, title) {
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [data.cf.chartData.label, data.aws.chartData.label],
+                        datasets: [{
+                            label: 'Cloudflare',
+                            data: [data.cf.chartData.value, 0],
+                            backgroundColor: '#F48120',
+                            borderColor: '#F48120',
+                            borderWidth: 1
+                        }, {
+                            label: 'AWS',
+                            data: [0, data.aws.chartData.value],
+                            backgroundColor: '#232F3E',
+                            borderColor: '#232F3E',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: data.id === 'dns' ? 'Milisegundos (ms)' : (data.id === 'workers' ? 'Milisegundos (ms)' : 'Rendimiento Relativo') }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function createCalculator() {
+                return `
+                    <div class="max-w-xl mx-auto">
+                        <div class="mb-6">
+                            <label for="storage-slider" class="block font-medium mb-1">Almacenamiento (GB): <span id="storage-value" class="font-bold">100</span> GB</label>
+                            <input type="range" id="storage-slider" min="0" max="1000" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="mb-8">
+                             <label for="egress-slider" class="block font-medium mb-1">Transferencia de Datos (GB/mes): <span id="egress-value" class="font-bold">50</span> GB</label>
+                            <input type="range" id="egress-slider" min="0" max="500" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <h4 class="font-bold text-lg mb-2 text-[#F48120]">Cloudflare R2</h4>
+                                <p class="text-4xl font-bold" id="r2-cost">$1.50</p>
+                                <p class="text-sm text-gray-500">/mes</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-lg mb-2 text-[#232F3E]">AWS S3</h4>
+                                <p class="text-4xl font-bold" id="s3-cost">$6.80</p>
+                                <p class="text-sm text-gray-500">/mes</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function createDiagram() {
+                return `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                        <div class="p-6 border rounded-lg h-full">
+                            <h4 class="font-bold text-lg mb-2 text-center text-[#F48120]">Cloudflare: Seguridad Integrada</h4>
+                            <div class="bg-orange-50 border-2 border-dashed border-orange-200 rounded-lg p-4 text-center">
+                                <p class="font-semibold">Plan Pro/Business</p>
+                                <div class="mt-2 space-y-2">
+                                    <p class="bg-orange-100 rounded p-2">✅ WAF Inteligente</p>
+                                    <p class="bg-orange-100 rounded p-2">✅ Protección DDoS Ilimitada</p>
+                                    <p class="bg-orange-100 rounded p-2">✅ Gestión de Bots</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-6 border rounded-lg h-full">
+                            <h4 class="font-bold text-lg mb-2 text-center text-[#232F3E]">AWS: Seguridad por Módulos</h4>
+                            <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                <p class="font-semibold">Servicios Base</p>
+                                <div class="mt-2 space-y-2">
+                                    <p class="bg-gray-200 rounded p-2">➕ AWS WAF (costo por regla + req)</p>
+                                    <p class="bg-gray-200 rounded p-2">➕ AWS Shield Advanced ($3000/mes)</p>
+                                    <p class="bg-gray-200 rounded p-2">➕ Bot Control (costo adicional)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function updateCalculator() {
+                const storageSlider = document.getElementById('storage-slider');
+                const egressSlider = document.getElementById('egress-slider');
+                const storageValue = document.getElementById('storage-value');
+                const egressValue = document.getElementById('egress-value');
+                const r2CostEl = document.getElementById('r2-cost');
+                const s3CostEl = document.getElementById('s3-cost');
+
+                if (!storageSlider) return;
+
+                const storage = parseInt(storageSlider.value);
+                const egress = parseInt(egressSlider.value);
+
+                storageValue.textContent = storage;
+                egressValue.textContent = egress;
+
+                const r2StorageCost = Math.max(0, storage - 10) * 0.015;
+                const r2OpsCost = (1 * 0) + (1 * 0); 
+                const r2TotalCost = r2StorageCost + r2OpsCost;
+
+                const s3StorageCost = Math.max(0, storage - 5) * 0.023;
+                const s3EgressCost = Math.max(0, egress - 100) * 0.09;
+                const s3OpsCost = (2 * 0.005) + (20 * 0.0004); 
+                const s3TotalCost = s3StorageCost + s3EgressCost + s3OpsCost;
+
+                r2CostEl.textContent = `$${r2TotalCost.toFixed(2)}`;
+                s3CostEl.textContent = `$${s3TotalCost.toFixed(2)}`;
+            }
+
+
+            function showTab(id) {
+                if (activeChart) {
+                    activeChart.destroy();
+                    activeChart = null;
+                }
+                
+                contentArea.innerHTML = '';
+                const data = contentData[id];
+                
+                const tabContent = document.createElement('div');
+                tabContent.id = `content-${id}`;
+                tabContent.className = 'tab-content';
+                
+                let vizHtml = '';
+                if(data.chartType === 'bar') {
+                     vizHtml = `<div class="chart-container"><canvas id="chart-${id}"></canvas></div>`;
+                } else if(data.chartType === 'calculator') {
+                     vizHtml = createCalculator();
+                } else if (data.chartType === 'diagram') {
+                    vizHtml = createDiagram();
+                }
+
+                tabContent.innerHTML = `
+                    <div class="text-center mb-12">
+                         <h2 class="text-3xl font-bold tracking-tight">${data.title}</h2>
+                         <p class="mt-2 max-w-2xl mx-auto text-gray-500">${data.intro}</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        ${createCard(data.cf, 'cf')}
+                        ${createCard(data.aws, 'aws')}
+                        ${createChartContainer(id, data.chartTitle)}
+                    </div>
+                `;
+
+                contentArea.appendChild(tabContent);
+                document.getElementById(`viz-container-${id}`).innerHTML = vizHtml;
+
+                if (data.chartType === 'bar') {
+                    activeChart = createBarChart(`chart-${id}`, { cf: data.cf, aws: data.aws, id: id });
+                } else if (data.chartType === 'calculator') {
+                    const storageSlider = document.getElementById('storage-slider');
+                    const egressSlider = document.getElementById('egress-slider');
+                    storageSlider.addEventListener('input', updateCalculator);
+                    egressSlider.addEventListener('input', updateCalculator);
+                    updateCalculator();
+                }
+
+
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`btn-${id}`).classList.add('active');
+            }
+            
+            Object.keys(contentData).forEach(key => {
+                navigation.appendChild(createNavButton(key, contentData[key]));
+            });
+
+            // Populate references list
+            if (referencesList && contentData.references && contentData.references.links) {
+                contentData.references.links.forEach(ref => {
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `<a href="${ref.url}" target="_blank" rel="noopener noreferrer" class="reference-link">${ref.text}</a>`;
+                    referencesList.appendChild(listItem);
+                });
+            }
+            
+            showTab('cdn');
+        });
+    </script>
+</body>
+</html>
